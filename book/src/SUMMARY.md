@@ -10,7 +10,7 @@
     - [Positional Encodings and RoPE](./week1-02-positional-encodings.md)
     - [Grouped/Multi Query Attention](./week1-03-gqa.md)
     - [RMSNorm and MLP](./week1-04-rmsnorm-and-mlp.md)
-    - [The Qwen2 Model]()
+    - [The Qwen2 Model](./week1-05-qwen2-model.md)
     - [Generating the Response]()
     - [Sampling and Preparing for Week 2]()
     <!--
