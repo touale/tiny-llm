@@ -1,5 +1,5 @@
 import mlx.core as mx
-import math
+import mlx.nn as nn
 
 
 def softmax(x: mx.array, axis: int) -> mx.array:
@@ -12,7 +12,11 @@ def linear(
     w: mx.array,
     bias: mx.array | None = None,
 ) -> mx.array:
-    pass
+    out = x @ w.T
+    if bias is not None:
+        out += bias
+    return out
+
 
 
 def silu(x: mx.array) -> mx.array:
