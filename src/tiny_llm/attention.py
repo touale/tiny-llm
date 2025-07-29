@@ -1,6 +1,7 @@
 import mlx.core as mx
-from .basics import softmax, linear
+from tiny_llm.basics import softmax, linear
 import math
+import numpy as np
 
 
 def scaled_dot_product_attention_simple(
@@ -86,7 +87,9 @@ class SimpleMultiHeadAttention:
 
 
 def causal_mask(L: int, S: int, dtype: mx.Dtype) -> mx.array:
-    pass
+    mask = mx.triu(mx.ones((L, S)), k=S - L + 1)
+    mask = mx.where(mask, mx.array(-mx.inf), mx.array(0)).astype(dtype)
+    return mask
 
 
 def scaled_dot_product_attention_grouped(
@@ -96,7 +99,31 @@ def scaled_dot_product_attention_grouped(
     scale: float | None = None,
     mask: mx.array | str | None = None,
 ) -> mx.array:
-    pass
+    """
+    query: N.. x H_q x L x D
+    key: N.. x H x S x D
+    value: N.. x H x S x D
+    mask: N.. x H_q x L x S
+    output: N.. x H_q x L x D
+    """
+    origin_shape = query.shape
+    H_q, L, D = query.shape[-3:]
+    H, S, _ = key.shape[-3:]
+    assert H_q % H == 0
+    n_repeats = H_q // H
+
+    query = query.reshape(-1, H, n_repeats, L, D)
+    key = key.reshape(-1, H, 1, S, D)
+    value = value.reshape(-1, H, 1, S, D)
+
+    if mask is not None:
+        if mask == "causal":
+            mask = causal_mask(L, S, query.dtype)
+        else:
+            mask = mask.reshape(-1, H, n_repeats, mask.shape[-2], mask.shape[-1])
+
+    out = scaled_dot_product_attention_simple(query, key, value, scale, mask)
+    return out.reshape(origin_shape)
 
 
 def flash_attention(
@@ -106,3 +133,29 @@ def flash_attention(
     scale: float | None = None,
 ) -> mx.array:
     pass
+
+
+H_q = 18
+H = 6
+L = 7
+D = 5
+S = 7
+BATCH = 10
+BATCH_2 = 2
+precision = mx.float32
+
+q_shape = (H_q, L, D)
+kv_shape = (H, S, D)
+mask_shape = (H_q, L, S)
+query = mx.random.uniform(shape=q_shape, dtype=precision)
+key = mx.random.uniform(shape=kv_shape, dtype=precision)
+value = mx.random.uniform(shape=kv_shape, dtype=precision)
+mask = mx.random.uniform(shape=mask_shape, dtype=precision)
+
+reference_output = scaled_dot_product_attention_grouped(
+    query.reshape(-1, H_q, L, D),
+    key.reshape(-1, H, S, D),
+    value.reshape(-1, H, S, D),
+    # scale=scale if scale is not None else (1.0 / (D**0.5)),
+    mask="causal",
+)
