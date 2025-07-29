@@ -31,7 +31,6 @@ class RoPE:
 
         # [cos, sin] cache
         self.cache = mx.stack([mx.cos(idx_theta), mx.sin(idx_theta)], axis=-1)
-        print(f"RoPE cache shape: {self.cache.shape}")
 
     def __call__(
         self, x: mx.array, offset: list[slice] | slice | None = None
@@ -50,15 +49,11 @@ class RoPE:
 
         # tensor has shape [b, s, n_h, h_d // 2, 2]
         if self.traditional:
-            x1 = xshaped[..., ::2].reshape(*xshaped.shape[:-1])
-            x2 = xshaped[..., 1::2].reshape(*xshaped.shape[:-1])
+            x1 = xshaped[..., 0]
+            x2 = xshaped[..., 1]
         else:
-            x1, x2 = mx.split(x, 2, axis=-1)
-            x1 = x1.reshape(*xshaped.shape[:-1])
-            x2 = x2.reshape(*xshaped.shape[:-1])
-            print(
-                f"RoPE x1 shape: {x1.shape}, x2 shape: {x2.shape}, xshaped shape: {xshaped.shape}"
-            )
+            x1 = x[..., 0 : self.dims // 2]
+            x2 = x[..., self.dims // 2 : self.dims]
 
         o1 = x1 * rope_cache[..., 0] - x2 * rope_cache[..., 1]
         o2 = x2 * rope_cache[..., 0] + x1 * rope_cache[..., 1]
@@ -69,5 +64,5 @@ class RoPE:
                 axis=-1,
             ).flatten(start_axis=-2)
         else:
-            out = mx.concatenate((o1, o2), axis=-1)
+            out = mx.concat((o1, o2), axis=-1)
         return out.astype(x.dtype)
