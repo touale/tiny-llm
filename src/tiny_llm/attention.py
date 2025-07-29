@@ -133,29 +133,3 @@ def flash_attention(
     scale: float | None = None,
 ) -> mx.array:
     pass
-
-
-H_q = 18
-H = 6
-L = 7
-D = 5
-S = 7
-BATCH = 10
-BATCH_2 = 2
-precision = mx.float32
-
-q_shape = (H_q, L, D)
-kv_shape = (H, S, D)
-mask_shape = (H_q, L, S)
-query = mx.random.uniform(shape=q_shape, dtype=precision)
-key = mx.random.uniform(shape=kv_shape, dtype=precision)
-value = mx.random.uniform(shape=kv_shape, dtype=precision)
-mask = mx.random.uniform(shape=mask_shape, dtype=precision)
-
-reference_output = scaled_dot_product_attention_grouped(
-    query.reshape(-1, H_q, L, D),
-    key.reshape(-1, H, S, D),
-    value.reshape(-1, H, S, D),
-    # scale=scale if scale is not None else (1.0 / (D**0.5)),
-    mask="causal",
-)
