@@ -221,15 +221,3 @@ class Qwen2ModelWeek1:
         out = self.norm(out)
         out = self.out_layer(out)
         return out
-
-
-# from mlx_lm import load
-
-# mlx_model, tokenizer = load( "Qwen/Qwen2-7B-Instruct-MLX")
-# model = Qwen2ModelWeek1(mlx_model)
-# for _ in range(1):
-#     input = mx.random.randint(low=0, high=tokenizer.vocab_size, shape=(1, 10))
-#     user_output = model(input, 0)
-#     user_output = user_output - mx.logsumexp(user_output, keepdims=True)
-#     ref_output = mlx_model(input)
-#     ref_output = ref_output - mx.logsumexp(ref_output, keepdims=True)

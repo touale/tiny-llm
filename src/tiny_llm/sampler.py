@@ -1,11 +1,27 @@
 import mlx.core as mx
-import copy
 
 
 def make_sampler(temp: float, top_p: float, top_k: int | None):
     def sample(logprobs: mx.array):
+        print(f"temp: {temp}, top_p: {top_p}, top_k: {top_k}")
         if temp == 0:
             return mx.argmax(logprobs, axis=-1)
-        pass
+        else:
+            if top_k:
+                mask_idx = mx.argpartition(-logprobs, kth=top_k - 1, axis=-1)[..., top_k:]
+                logprobs = mx.put_along_axis(
+                    logprobs, mask_idx, mx.array(-float("inf"), logprobs.dtype), axis=-1
+                )
+            if top_p:
+                sorted_indices = mx.argsort(logprobs, axis=-1)
+                sorted_logprobs = logprobs[:, sorted_indices]
+                cumsum = mx.cumsum(mx.exp(sorted_logprobs), axis=-1)
+                mask_elements = cumsum < top_p
+                mask_elements[..., 0] = True
+                logprobs[:, sorted_indices] = mx.where(mask_elements, sorted_logprobs, -mx.inf)
+
+            logprobs = logprobs / temp
+            return mx.random.categorical(logprobs,axis=-1)
+        
 
     return sample
