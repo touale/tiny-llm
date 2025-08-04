@@ -215,9 +215,4 @@ void QuantizedMatmul::eval_gpu(const std::vector<mx::array> &inputs, std::vector
     compute_encoder.dispatch_threadgroups(num_threadgroups, num_threads_per_group);
 }
 
-bool QuantizedMatmul::is_equivalent(const Primitive &other) const {
-    const QuantizedMatmul &r_other = static_cast<const QuantizedMatmul &>(other);
-    return group_size_ == r_other.group_size_ && bits_ == r_other.bits_;
-}
-
 }  // namespace tiny_llm_ext_ref

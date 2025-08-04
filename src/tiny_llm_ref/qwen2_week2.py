@@ -1,6 +1,10 @@
 import mlx.core as mx
 from .basics import silu
-from .attention import scaled_dot_product_attention_grouped
+from .attention import (
+    scaled_dot_product_attention_grouped,
+    flash_attention,
+    causal_mask,
+)
 from .layer_norm import RMSNorm
 from .positional_encoding import RoPE
 from typing import Any
@@ -24,6 +28,7 @@ class Qwen2MultiHeadAttention:
         bv: mx.array,
         max_seq_len: int = 32768,
         theta: int = 1000000,
+        use_flash_attention: bool = False,
     ):
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -44,6 +49,7 @@ class Qwen2MultiHeadAttention:
         self.bk = bk
         self.bv = bv
         self.rope = RoPE(self.head_dim, max_seq_len, theta)
+        self.use_flash_attention = use_flash_attention
 
     def __call__(
         self,
@@ -72,18 +78,28 @@ class Qwen2MultiHeadAttention:
         projection_q = projection_q.transpose(0, 2, 1, 3)
         projection_k = projection_k.transpose(0, 2, 1, 3)
         projection_v = projection_v.transpose(0, 2, 1, 3)
-        projection_k, projection_v, _, kv_cache_mask = cache.update_and_fetch(
-            projection_k, projection_v, q_L=L
+        projection_k, projection_v, _, mask = cache.update_and_fetch(
+            projection_k, projection_v, mask_length=L, mask=mask
         )
-        if kv_cache_mask is not None:
-            mask = kv_cache_mask
-        x = scaled_dot_product_attention_grouped(
-            projection_q.astype(mx.float32),
-            projection_k.astype(mx.float32),
-            projection_v.astype(mx.float32),
-            scale=self.scale,
-            mask=mask,
-        ).astype(x.dtype)
+        S = projection_k.shape[-2]
+        if mask == "causal":
+            mask = causal_mask(L, S, mx.float32)
+        if self.use_flash_attention:
+            x = flash_attention(
+                projection_q.astype(mx.float32),
+                projection_k.astype(mx.float32),
+                projection_v.astype(mx.float32),
+                scale=self.scale,
+                mask=mask,
+            ).astype(x.dtype)
+        else:
+            x = scaled_dot_product_attention_grouped(
+                projection_q.astype(mx.float32),
+                projection_k.astype(mx.float32),
+                projection_v.astype(mx.float32),
+                scale=self.scale,
+                mask=mask,
+            ).astype(x.dtype)
         x = x.transpose(0, 2, 1, 3).reshape(B, L, self.hidden_size)
         return quantized_linear(x, self.wo)
 
@@ -132,6 +148,7 @@ class Qwen2TransformerBlock:
         w_post_attention_layernorm: mx.array,
         max_seq_len: int = 32768,
         theta: int = 1000000,
+        use_flash_attention: bool = False,
     ):
         self.num_attention_heads = num_attention_heads
         self.hidden_size = hidden_size
@@ -153,6 +170,7 @@ class Qwen2TransformerBlock:
             bv=bv,
             max_seq_len=max_seq_len,
             theta=theta,
+            use_flash_attention=use_flash_attention,
         )
 
     def __call__(
@@ -234,6 +252,7 @@ class Qwen2ModelWeek2:
                 ].post_attention_layernorm.weight.astype(precision),
                 max_seq_len=mlx_model.args.max_position_embeddings,
                 theta=mlx_model.args.rope_theta,
+                use_flash_attention=True,
             )
             self.layers_inner.append(layer)
         self.norm = RMSNorm(

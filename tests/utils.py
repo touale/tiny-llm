@@ -14,6 +14,7 @@ def assert_allclose(
     precision: mx.Dtype,
     rtol: float | None = None,
     atol: float | None = None,
+    message: str | None = None,
 ):
     a = np.array(a)
     b = np.array(b)
@@ -38,7 +39,7 @@ def assert_allclose(
             print("diff_b=", b * diff)
             print("diff_a_val=", a[diff])
             print("diff_b_val=", b[diff])
-            assert False, f"result mismatch"
+            assert False, f"result mismatch: {message}"
 
 
 def np_type_to_mx_type(np_type: np.dtype) -> mx.Dtype:

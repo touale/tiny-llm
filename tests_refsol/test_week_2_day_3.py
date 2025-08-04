@@ -9,7 +9,7 @@ def attention_helper(stream: mx.Stream, H_q, H, L, E, S, BATCH):
     with mx.stream(stream):
         q_shape = (BATCH, H_q, L, E)
         kv_shape = (BATCH, H, S, E)
-        scale = 1.0
+        scale = 0.9
         for _ in range(100):
             query = mx.random.uniform(shape=q_shape, dtype=precision)
             key = mx.random.uniform(shape=kv_shape, dtype=precision)
