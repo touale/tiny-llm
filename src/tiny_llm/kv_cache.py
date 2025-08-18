@@ -3,6 +3,9 @@ from typing import Optional
 import mlx.core as mx
 
 class TinyKvCache:
+    def __init__(self):
+        self.cache = {"key": None, "value": None}
+        
     def update_and_fetch(
         self,
         key: mx.array,
@@ -45,9 +48,17 @@ class BatchingKvCache(TinyKvCache):
 
 class TinyKvFullCache(TinyKvCache):
     def __init__(self):
-        pass
+        self.cache = {"key": None, "value": None}
 
     def update_and_fetch(
         self, key: mx.array, value: mx.array
     ) -> tuple[mx.array, mx.array, int]:
-        pass
+        if self.cache["key"] is None:
+            self.cache["key"] = key
+            self.cache["value"] = value
+        else:
+            self.cache["key"] = mx.concat((self.cache["key"], key), axis=2)
+            self.cache["value"] = mx.concat((self.cache["value"], value), axis=2)
+        
+        return (self.cache["key"], self.cache["value"])
+

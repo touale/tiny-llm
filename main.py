@@ -86,7 +86,7 @@ with mx.stream(mx.gpu if args.device == "gpu" else mx.cpu):
         if args.loader == "week1":
             simple_generate(tiny_llm_model, tokenizer, prompt, sampler=sampler)
         elif args.loader == "week2":
-            simple_generate_with_kv_cache(tiny_llm_model, tokenizer, prompt)
+            simple_generate_with_kv_cache(tiny_llm_model, tokenizer, prompt, sampler=sampler)
     else:
         sampler = mlx_lm.sample_utils.make_sampler(
             args.sampler_temp, top_p=args.sampler_top_p, top_k=args.sampler_top_k

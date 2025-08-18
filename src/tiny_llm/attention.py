@@ -109,7 +109,7 @@ def scaled_dot_product_attention_grouped(
     origin_shape = query.shape
     H_q, L, D = query.shape[-3:]
     H, S, _ = key.shape[-3:]
-    assert H_q % H == 0
+    assert H_q % H == 0, f"Number of heads in query ({H_q}) must be divisible by number of heads in key ({H}), shape: q={query.shape}, k={key.shape}, v={value.shape}"
     n_repeats = H_q // H
 
     query = query.reshape(-1, H, n_repeats, L, D)
