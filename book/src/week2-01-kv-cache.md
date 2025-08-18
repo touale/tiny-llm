@@ -36,24 +36,25 @@ $$
 $$
 
 
-Consider two consecutive decoding steps with `L = 3` and `L = 4`, where each head in each layer has an embedding dim of `D = 4`:
+Consider two consecutive decoding steps with `L = S = 3` and `L = S = 4`, where each head in each layer has an embedding dim of `D = 4`:
 
 ```
 L = 3
-Q        x  K^T       =         
-1 1 1 1     1 1 1 1      1x1 1x2 1x3 1x4
-2 2 2 2     2 2 2 2      2x1 2x2 2x3 2x4
-3 3 3 3     3 3 3 3      3x1 3x2 3x3 3x4
+Q        x  K^T     =         
+1 1 1 1     1 2 3      1x1  -inf -inf
+2 2 2 2     1 2 3      2x1  2x2  -inf
+3 3 3 3     1 2 3      3x1  3x2  -inf
+            1 2 3
 
 L = 4
 Q        x  K^T       =
-1 1 1 1     1 1 1 1      1x1 1x2 1x3 1x4
-2 2 2 2     2 2 2 2      2x1 2x2 2x3 2x4
-3 3 3 3     3 3 3 3      3x1 3x2 3x3 3x4
-4 4 4 4     4 4 4 4      4x1 4x2 4x3 4x4
+1 1 1 1     1 2 3 4      1x1  -inf -inf -inf
+2 2 2 2     1 2 3 4      2x1  2x2  -inf -inf
+3 3 3 3     1 2 3 4      3x1  3x2  3x3  -inf
+4 4 4 4     1 2 3 4      4x1  4x2  4x3  4x4
 ```
 
-Notice that the first three rows of `Q × K^T` are identical in both steps. The same redundancy applies to the softmax and `V` multiplication. This means we are unnecessarily recomputing results for tokens we’ve already processed.
+Notice that the first three rows/cols of `Q × K^T` are identical in both steps. Also given that we are using the causal masks, we do not need to care about the upper triangle of the matrix. The same applies to the softmax function and the multiplication with the V matrix. This means we are unnecessarily recomputing results for tokens we’ve already processed, and the new information only comes from the last row of `Q * K^T`.
 
 The solution is to cache the K and V matrices and only compute new values for incoming tokens:
 
@@ -64,14 +65,16 @@ K in cache:
 
 [a b c d] represent cached values
 
-L = 3
+L = 1, S = 3
 Q        x  K^T       =         
+            (⬇️ is K not transposed)
             [1 1 1 1]      
             [2 2 2 2]      
-3 3 3 3      3 3 3 3      3x1 3x2 3x3 3x4
+3 3 3 3      3 3 3 3      3x1 3x2 3x3
 
-L = 4
-Q        x  K^T       =
+L = 1, S = 4
+Q        x  K^T       = 
+            (⬇️ is K not transposed)
             [1 1 1 1]      
             [2 2 2 2]      
             [3 3 3 3]
@@ -135,11 +138,16 @@ v = linear(x, wv, bv) -> B, L', H, D
 q = rope(q, offset=slice(offset, offset + L'))
 k = rope(k, offset=slice(offset, offset + L'))
 (transpose as needed)
-k, v = cache.update_and_fetch(k, v)
-x = scaled_dot_product_attention_grouped(q, k, v, scale, mask) -> B, L, H_q, D  # at float32 precision
+k, v = cache.update_and_fetch(k, v) ; k/v: B, L, H, D, q: B, L', H, D
+x = scaled_dot_product_attention_grouped(q, k, v, scale, mask) -> B, L', H_q, D  # at float32 precision
 (transpose as needed)
-x = linear(x, wo) -> B, L, E
+x = linear(x, wo) -> B, L', E
 ```
+
+We use two different variables for the `L'` because they have different meanings in the context of this chapter
+and the context of week 1 day 3: in the GQA implementation, k/v's sequence length is `S` (source length), while
+q's sequence length is `L`. In the Qwen2 multihead attention implementation, `L'` is the "new token" and `L` is
+the total sequence length, which corresponds to `L` and `S` in week 1 respectively.
 
 ## Task 3: Implement the Model
 
