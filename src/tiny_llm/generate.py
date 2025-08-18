@@ -37,7 +37,8 @@ def simple_generate(
 def simple_generate_with_kv_cache(
     model: Qwen2ModelWeek2, tokenizer: TokenizerWrapper, prompt: str
 ) -> str:
-    pass
+    def _step(model, y, offset, kv_cache):
+        pass
 
 
 def batch_generate(

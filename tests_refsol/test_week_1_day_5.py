@@ -32,7 +32,7 @@ def helper_test_task_3(model_name: str, iters: int = 10):
     model = Qwen2ModelWeek1(mlx_model)
     for _ in range(iters):
         input = mx.random.randint(low=0, high=tokenizer.vocab_size, shape=(1, 10))
-        user_output = model(input, 0)
+        user_output = model(input)
         user_output = user_output - mx.logsumexp(user_output, keepdims=True)
         ref_output = mlx_model(input)
         ref_output = ref_output - mx.logsumexp(ref_output, keepdims=True)
